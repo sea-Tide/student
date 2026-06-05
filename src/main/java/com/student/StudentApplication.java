@@ -11,3 +11,4 @@ public class StudentApplication {
         SpringApplication.run(StudentApplication.class, args);
     }
 }
+// 测试远程仓库撤销能力
