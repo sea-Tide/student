@@ -1,0 +1,18 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/student_system?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 7963
+  jackson: # JSON 时间格式配置
+    time-zone: Asia/Shanghai # 使用中国时区
+    date-format: yyyy-MM-dd HH:mm:ss # 返回给前端的时间格式
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml # Mapper XML文件位置
+  type-aliases-package: com.student.domain # 实体类所在包，XML 中可以直接使用实体类
+  configuration:
+    map-underscore-to-camel-case: true # 开启下划线转为驼峰的字段映射

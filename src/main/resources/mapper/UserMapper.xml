@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- namespace：映射的接口名 -->
+<!-- type：映射的实体类类型 -->
+<!-- property：实体类字段名 -->
+<!-- column：数据库字段名 -->
+
+<!-- id：绑定的接口方法名 -->
+<!-- resultMap：返回时封装的结果集 -->
+<!-- resultType：返回时封装的类型 -->
+
+<mapper namespace="com.student.mapper.UserMapper">
+
+    <resultMap id="UserResultMap" type="com.student.domain.pojo.User">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="displayName" column="display_name"/>
+        <result property="role" column="role"/>
+        <result property="enabled" column="enabled"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByUsername" resultMap="UserResultMap">
+        SELECT id,username,password,display_name,role,enabled,created_at,updated_at
+        FROM users
+        WHERE username = #{username}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.student.domain.pojo.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (username,password,display_name,role,enabled)
+        VALUES (#{username},#{password},#{displayName},#{role},#{enabled})
+    </insert>
+
+    <update id="updatePassword">
+        UPDATE users
+        SET password = #{password},
+        updated_at = CURRENT_TIMESTAMP
+        WHERE username = #{username}
+    </update>
+
+</mapper>

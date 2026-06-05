@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生信息管理</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="topbar-inner">
+        <div class="brand-block compact">
+            <span class="brand-mark">S</span>
+            <div>
+                <h1>学生信息管理</h1>
+                <p id="currentUser">已登录</p>
+            </div>
+        </div>
+        <button id="logoutButton" class="button ghost" type="button">退出登录</button>
+    </div>
+</header>
+
+<main class="workspace">
+    <section class="toolbar" aria-label="学生操作">
+        <label class="search-field">
+            <span>搜索</span>
+            <input id="keyword" type="search" placeholder="学号 / 姓名 / Email / 专业">
+        </label>
+        <button id="searchButton" class="button secondary" type="button">查询</button>
+        <button id="resetButton" class="button ghost" type="button">重置</button>
+        <button id="createButton" class="button primary push-right" type="button">新增学生</button>
+    </section>
+
+    <section class="table-panel" aria-labelledby="tableTitle">
+        <div class="table-header">
+            <h2 id="tableTitle">学生列表</h2>
+            <span id="studentCount" class="count-badge">0 条</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>学号</th>
+                    <th>姓名</th>
+                    <th>Email</th>
+                    <th>性别</th>
+                    <th>专业</th>
+                    <th>入学年份</th>
+                    <th>更新时间</th>
+                    <th class="actions-col">操作</th>
+                </tr>
+                </thead>
+                <tbody id="studentRows">
+                <tr>
+                    <td colspan="8" class="empty-cell">正在加载数据</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p id="pageMessage" class="message inline" role="alert"></p>
+    </section>
+</main>
+
+<dialog id="studentDialog" class="student-dialog">
+    <form id="studentForm" class="dialog-body" method="dialog">
+        <div class="dialog-title-row">
+            <h2 id="dialogTitle">新增学生</h2>
+            <button id="closeDialogButton" class="icon-button" type="button" aria-label="关闭">×</button>
+        </div>
+        <div class="form-grid">
+            <label class="field">
+                <span>学号</span>
+                <input name="id" maxlength="32" required>
+            </label>
+            <label class="field">
+                <span>姓名</span>
+                <input name="name" maxlength="40" required>
+            </label>
+            <label class="field wide">
+                <span>Email</span>
+                <input name="email" type="email" maxlength="120" required>
+            </label>
+            <label class="field">
+                <span>性别</span>
+                <select name="gender">
+                    <option value="">未填写</option>
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                </select>
+            </label>
+            <label class="field">
+                <span>入学年份</span>
+                <input name="grade" type="number" min="2000" max="2100" step="1">
+            </label>
+            <label class="field wide">
+                <span>专业</span>
+                <input name="major" maxlength="80">
+            </label>
+        </div>
+        <p id="dialogMessage" class="message" role="alert"></p>
+        <div class="dialog-actions">
+            <button id="cancelButton" class="button ghost" type="button">取消</button>
+            <button id="saveButton" class="button primary" type="submit">保存</button>
+        </div>
+    </form>
+</dialog>
+
+<script src="/assets/request.js"></script>
+<script>
+    const state = {
+        students: [],
+        editingId: null
+    };
+
+    const rows = document.querySelector("#studentRows");
+    const count = document.querySelector("#studentCount");
+    const keyword = document.querySelector("#keyword");
+    const pageMessage = document.querySelector("#pageMessage");
+    const dialog = document.querySelector("#studentDialog");
+    const form = document.querySelector("#studentForm");
+    const dialogTitle = document.querySelector("#dialogTitle");
+    const dialogMessage = document.querySelector("#dialogMessage");
+    const saveButton = document.querySelector("#saveButton");
+    const currentUser = document.querySelector("#currentUser");
+
+    boot(); // 初始化信息
+
+    async function boot() {
+        try {
+            const user = await api.get("/api/users/me"); // 获取当前登录信息
+            currentUser.textContent = `${user.displayName} · ${user.username}`;
+            await loadStudents();
+        } catch (error) {
+            window.location.href = "/login.html";
+        }
+    }
+
+    // 查询学生列表(可带条件查询)
+    async function loadStudents() {
+        setPageMessage("");
+        rows.innerHTML = `<tr><td colspan="8" class="empty-cell">正在加载数据</td></tr>`;
+        try {
+            const query = keyword.value.trim();
+            const url = query ? `/api/students?keyword=${encodeURIComponent(query)}` : "/api/students";
+            state.students = await api.get(url);
+            renderRows();
+        } catch (error) {
+            setPageMessage(error.message);
+        }
+    }
+
+    // 填充学生列表信息
+    function renderRows() {
+        count.textContent = `${state.students.length} 条`; // 学生信息总数
+        if (state.students.length === 0) {
+            rows.innerHTML = `<tr><td colspan="8" class="empty-cell">暂无学生数据</td></tr>`;
+            return;
+        }
+        rows.innerHTML = state.students.map((student) => `
+            <tr>
+                <td class="strong">${escapeHtml(student.id)}</td>
+                <td>${escapeHtml(student.name)}</td>
+                <td>${escapeHtml(student.email)}</td>
+                <td>${escapeHtml(student.gender || "-")}</td>
+                <td>${escapeHtml(student.major || "-")}</td>
+                <td>${student.grade ?? "-"}</td>
+                <td>${formatTime(student.updatedAt)}</td>
+                <td class="row-actions">
+                    <button class="button small secondary" type="button" data-action="edit" data-id="${escapeHtml(student.id)}">编辑</button>
+                    <button class="button small danger" type="button" data-action="delete" data-id="${escapeHtml(student.id)}">删除</button>
+                </td>
+            </tr>
+        `).join("");
+    }
+
+    // 新增学生信息
+    function openCreateDialog() {
+        state.editingId = null;
+        dialogTitle.textContent = "新增学生";
+        dialogMessage.textContent = "";
+        form.reset();
+        form.elements.id.readOnly = false;
+        dialog.showModal();
+        form.elements.id.focus();
+    }
+
+    // 修改学生信息
+    function openEditDialog(id) {
+        const student = state.students.find((item) => item.id === id);
+        if (!student) {
+            return;
+        }
+        state.editingId = id;
+        dialogTitle.textContent = "编辑学生";
+        dialogMessage.textContent = "";
+        form.elements.id.value = student.id || "";
+        form.elements.id.readOnly = true;
+        form.elements.name.value = student.name || "";
+        form.elements.email.value = student.email || "";
+        form.elements.gender.value = student.gender || "";
+        form.elements.grade.value = student.grade || "";
+        form.elements.major.value = student.major || "";
+        dialog.showModal();
+        form.elements.id.focus();
+    }
+
+    // 保存学生信息
+    async function saveStudent(event) {
+        event.preventDefault();
+        dialogMessage.textContent = "";
+        saveButton.disabled = true;
+        const payload = {
+            id: form.elements.id.value,
+            name: form.elements.name.value,
+            email: form.elements.email.value,
+            gender: form.elements.gender.value || null,
+            major: form.elements.major.value || null,
+            grade: form.elements.grade.value ? Number(form.elements.grade.value) : null
+        };
+        try {
+            if (state.editingId) {
+                payload.id = state.editingId;
+                await api.put(`/api/students/${encodeURIComponent(state.editingId)}`, payload);
+            } else {
+                await api.post("/api/students", payload);
+            }
+            dialog.close();
+            await loadStudents();
+        } catch (error) {
+            dialogMessage.textContent = error.message;
+        } finally {
+            saveButton.disabled = false;
+        }
+    }
+
+    // 删除学生信息
+    async function deleteStudent(id) {
+        const student = state.students.find((item) => item.id === id);
+        if (!student || !window.confirm(`确定删除学生 ${student.name} 吗？`)) {
+            return;
+        }
+        try {
+            await api.delete(`/api/students/${encodeURIComponent(id)}`);
+            await loadStudents();
+        } catch (error) {
+            setPageMessage(error.message);
+        }
+    }
+
+    // 设置页面消息
+    function setPageMessage(text) {
+        pageMessage.textContent = text;
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function formatTime(value) {
+        if (!value) {
+            return "-";
+        }
+        return escapeHtml(String(value).replace("T", " ").slice(0, 19));
+    }
+
+    document.querySelector("#searchButton").addEventListener("click", loadStudents);
+    document.querySelector("#resetButton").addEventListener("click", () => {
+        keyword.value = "";
+        loadStudents();
+    });
+    keyword.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            loadStudents();
+        }
+    });
+    document.querySelector("#createButton").addEventListener("click", openCreateDialog);
+    document.querySelector("#closeDialogButton").addEventListener("click", () => dialog.close());
+    document.querySelector("#cancelButton").addEventListener("click", () => dialog.close());
+    form.addEventListener("submit", saveStudent);
+    rows.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-action]");
+        if (!button) {
+            return;
+        }
+        const id = button.dataset.id;
+        if (button.dataset.action === "edit") {
+            openEditDialog(id);
+        }
+        if (button.dataset.action === "delete") {
+            deleteStudent(id);
+        }
+    });
+
+    // 注销
+    document.querySelector("#logoutButton").addEventListener("click", async () => {
+        await api.post("/api/users/logout", {});
+        window.location.href = "/login.html";
+    });
+</script>
+</body>
+</html>
