@@ -9,6 +9,9 @@
 <!-- id：绑定的接口方法名 -->
 <!-- resultMap：返回时封装的结果集 -->
 <!-- resultType：返回时封装的类型 -->
+<!-- parameterType：传入参数的类型 -->
+<!-- useGeneratedKeys：开启数据库自增主键回填-->
+<!-- keyProperty：把生成的主键值回填到属性值-->
 
 <mapper namespace="com.student.mapper.UserMapper">
 
